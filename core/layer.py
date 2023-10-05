@@ -4,6 +4,7 @@ import pinenut.core as C
 import pinenut.core.dropout as DO
 import numpy as np
 import os
+import pinenut.core.cuda as cuda
 
 
 class LayerBase:
@@ -74,6 +75,8 @@ class LayerBase:
             d[name]._params_and_path(all_params_dict, key)
 
     def save_weights(self, path):
+        self.to_cpu()
+
         all_params_dict = {}
         self._params_and_path(all_params_dict, '')
 
@@ -99,6 +102,7 @@ class LayerBase:
         :param path:
         :return:
         """
+        self.to_cpu()
         # print('loading weights from %s' % path)
         try:
             from_npz = np.load(path, allow_pickle=True)
@@ -127,17 +131,20 @@ class Linear(LayerBase):
         else:
             self.bias = None
 
-    def init_weight(self):
-        self.weight.data = np.random.randn(self.in_features, self.out_features).astype(self.dtype) * np.sqrt(
+    def init_weight(self, xp=np):
+        self.weight.data = xp.random.randn(self.in_features, self.out_features).astype(self.dtype) * xp.sqrt(
             2 / self.in_features)
 
     def forward(self, x):
         if self.weight.data is None:
             self.in_features = x.shape[-1]
-            self.init_weight()
+            xp = cuda.Cuda.get_array_module(x)
+            self.init_weight(xp=xp)
+
+        # print('type(x)=', type(x.data))
+        # print('type(w)=', type(self.weight.data))
 
         y = matmul(x, self.weight)
-        # y = x @ self.weight
 
         if self.bias is not None:
             y += self.bias
@@ -203,7 +210,7 @@ class MLP(LayerBase):
         train_loader = ds.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         if enable_cuda:
             self.to_gpu()
-            train_loader.enable_cuda()
+            train_loader.to_gpu()
         for epoch in range(epochs):
             sum_loss = 0.0
             sum_acc = 0.0
@@ -228,6 +235,10 @@ class MLP(LayerBase):
             if test_dataset is not None:
                 with C.no_grad():
                     test_loader = ds.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+                    if enable_cuda:
+                        self.to_gpu()
+                        test_loader.to_gpu()
+ 
                     sum_loss = 0.0
                     sum_acc = 0.0
                     for x, y in test_loader:

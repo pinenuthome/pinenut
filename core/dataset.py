@@ -59,7 +59,9 @@ class DataLoader:
         i = self.iter_count * self.batch_size
         i_end = min(i + self.batch_size, len(self.dataset))
         batch = [self.dataset[j] for j in self.indexes[i:i_end]]
-        xp = cuda.Cuda.xp()
+        
+        xp = cuda.Cuda.xp() if self.enable_cuda else np
+        
         data = xp.array([example[0] for example in batch])
         label = xp.array([example[1] for example in batch])
 
@@ -74,8 +76,8 @@ class DataLoader:
         if self.shuffle:
             np.random.shuffle(self.indexes)
 
-    def enable_cuda(self):
+    def to_gpu(self):
         self.enable_cuda = True
 
-    def disable_cuda(self):
+    def to_cpu(self):
         self.enable_cuda = False

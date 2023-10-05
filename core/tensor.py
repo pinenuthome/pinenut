@@ -76,35 +76,39 @@ class Tensor:
     def __eq__(self, other):
         xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return xp.array_equal(self.data, other.data)
-        return xp.array_equal(self.data, other)
+            return xp.array_equal(self.data, as_array(other.data, xp=xp))
+        return xp.array_equal(self.data, as_array(other, xp=xp))
 
     def __ne__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
+        other = as_array(other, xp=xp)
         return not self.__eq__(other)
 
     def __le__(self, other):
         xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return xp.less_equal(self.data, other.data)
-        return xp.less_equal(self.data, other)
+            return xp.less_equal(self.data, as_array(other.data, xp=xp))
+        return xp.less_equal(self.data, as_array(other, xp=xp))
 
     def __lt__(self, other):
         xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return xp.less(self.data, other.data)
-        return xp.less(self.data, other)
+            return xp.less(self.data, as_array(other.data, xp=xp))
+        return xp.less(self.data, as_array(other, xp=xp))
 
     def __ge__(self, other):
         xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return xp.greater_equal(self.data, other.data)
-        return xp.greater_equal(self.data, other)
+            return xp.greater_equal(self.data, as_array(other.data, xp=xp))
+        return xp.greater_equal(self.data, as_array(other, xp=xp))
 
     def __gt__(self, other):
         xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return xp.greater(self.data, other.data)
-        return xp.greater(self.data, other)
+            print(self.data, xp, other.data)
+            return xp.greater(self.data, as_array(other.data, xp=xp))
+        a = as_array(other, xp=xp)
+        return xp.greater(self.data, as_array(other, xp=xp))
 
     def clear_grad(self):
         self.grad = None
@@ -172,9 +176,8 @@ def as_tensor(data, name=None):
         return Tensor(data, name=name)
 
 
-def as_array(data, dtype=None):
+def as_array(data, dtype=None, xp=np):
     if np.isscalar(data) or isinstance(data, (list, tuple)):
-        xp = cuda.Cuda.get_array_module(data)
         if dtype is None:
             return xp.array(data)
         else:
@@ -214,7 +217,7 @@ class Operator:
         raw_output = self.forward(*unpacked_input)
         if not isinstance(raw_output, tuple):
             raw_output = (raw_output,)
-        outputs = [as_array(a) for a in raw_output]
+        outputs = [as_array(a, xp=cuda.Cuda.get_array_module(a)) for a in raw_output]
         outputs = [as_tensor(a) for a in outputs]
 
         if utils.Config.enable_backprop:
@@ -269,12 +272,12 @@ class Add(Operator):
 
 
 def add(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Add()(x0, x1)
 
 
 def radd(x0, x1):
-    x0 = as_array(x0)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Add()(x1, x0)
 
 
@@ -308,12 +311,12 @@ class Sub(Operator):
 
 
 def sub(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Sub()(x0, x1)
 
 
 def rsub(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Sub()(x1, x0)
 
 
@@ -340,12 +343,12 @@ class Mul(Operator):
 
 
 def mul(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Mul()(x0, x1)
 
 
 def rmul(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Mul()(x1, x0)
 
 class Div(Operator):
@@ -371,12 +374,12 @@ class Div(Operator):
 
 
 def div(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Div()(x0, x1)
 
 
 def rdiv(x0, x1):
-    x1 = as_array(x1)
+    x1 = as_array(x1, xp=cuda.Cuda.get_array_module(x0.data))
     return Div()(x1, x0)
 
 
@@ -427,7 +430,8 @@ class Pow(Operator):
 
 
 def pow(x, n):
-    n = as_tensor(as_array(n))
+    xp=cuda.Cuda.get_array_module(x.data)
+    n = as_tensor(as_array(n, xp=xp))
     return Pow(n)(x)
 
 
@@ -545,7 +549,8 @@ class Transpose(Operator):
         inv_axes = self.axes
         if inv_axes:
             axes_len = len(inv_axes)
-            inv_axes = tuple(cuda.Cuda.xp().argsort([ax % axes_len for ax in inv_axes]))
+            xp = cuda.Cuda.get_array_module(self.inputs[0].data)
+            inv_axes = tuple(xp.argsort([ax % axes_len for ax in inv_axes]))
             return transpose(grad_output, inv_axes)
         else:
             return transpose(grad_output)
@@ -779,12 +784,16 @@ class Index(Operator):
         return '__index__'
 
     def forward(self, x):
+        self.x = x
         self.x_shape = x.shape
+        # print('type of x:', x)
+        # print('type of slices', self.slices)
+
         y = x[self.slices]
         return y
 
     def backward(self, grad_output):
-        ig = IndexGrad(self.slices, self.x_shape)
+        ig = IndexGrad(self.slices, self.x_shape, self.x)
         return ig(grad_output)
 
 
@@ -797,19 +806,25 @@ class IndexGrad(Operator):
     This class is used to compute the gradient of index operator.
     """
 
-    def __init__(self, slices, x_shape):
+    def __init__(self, slices, x_shape, x):
         super().__init__()
         self.slices = slices
         self.x_shape = x_shape
+        self.x = x
 
     @property
     def label(self):
         return '__index_grad__'
 
     def forward(self, grad_output):
-        xp = cuda.Cuda.xp()
+        xp = cuda.Cuda.get_array_module(self.x) 
         grad_x = xp.zeros(self.x_shape, dtype=grad_output.dtype)
-        xp.add.at(grad_x, self.slices, grad_output)
+        if xp is np:
+            np.add.at(grad_x, self.slices, grad_output)
+        else:
+            cpx = cuda.Cuda.cupyx()
+            cpx.scatter_add(grad_x, self.slices, grad_output)
+        
         return grad_x
 
     def backward(self, grad_of_grad_output):
@@ -892,7 +907,8 @@ class Concat(Operator):
         for (i, size) in enumerate(split_sizes):
             if i > 0:
                 split_sizes[i] += split_sizes[i - 1]
-        grads = cuda.Cuda.xp().split(grad_output.data, split_sizes, axis=axis)
+        xp = cuda.Cuda.get_array_module(xs[0])
+        grads = xp.split(grad_output.data, split_sizes, axis=axis)
         ret_grads = []
         for i in range(len(xs)):
             ret_grads.append(grads[i])

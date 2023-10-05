@@ -3,6 +3,7 @@ import pinenut.core.datasets as dss
 import pinenut.core.dataset as ds
 import pinenut.core as C
 from pinenut import MLP, SGD, relu, softmax, softmax_cross_entropy, accuracy
+from pinenut import Cuda
 
 
 def data_transform(x):
@@ -23,12 +24,17 @@ if test is None:
     print('test dataset is None')
     exit()
 
+
 with C.no_grad():
     print('---------------------------------------------------------------')
     sum_loss = 0.0
     sum_acc = 0.0
 
     test_loader = ds.DataLoader(test, batch_size=batch_size, shuffle=True)
+    cuda_is_available = Cuda.available()
+    if cuda_is_available:
+        test_loader.to_gpu()
+        model.to_gpu()
     for x, y in test_loader:
         y_pred = model.predict(x)
         loss = softmax_cross_entropy(y_pred, y)

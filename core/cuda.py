@@ -3,6 +3,7 @@ import pinenut.core as pn
 _cuda_available = True
 try:
     import cupy as cp
+    import cupyx as cpx
 except ImportError:
     _cuda_available = False
 
@@ -15,6 +16,10 @@ class Cuda:
     @staticmethod
     def cupy():
         return cp
+
+    @staticmethod
+    def cupyx():
+        return cpx
 
     @staticmethod
     def numpy():

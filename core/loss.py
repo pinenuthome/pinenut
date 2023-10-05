@@ -1,5 +1,6 @@
 import numpy as np
 import pinenut.core as C
+import pinenut.core.cuda as cuda
 
 
 def mean_squared_error(x0, x1):
@@ -21,7 +22,8 @@ def softmax_cross_entropy(x, t):
     p = softmax(x)
     p = C.clip(p, 1e-15, 1.0)
     log_p = C.log(p)
-    tlog_p = log_p[np.arange(N), t.data]
+    xp = cuda.Cuda.get_array_module(x)
+    tlog_p = log_p[xp.arange(N), t.data]
     y = -1 * C.sum(tlog_p) / N
     return y
 
