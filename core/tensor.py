@@ -2,6 +2,7 @@ import pinenut.core.backward as backward
 import pinenut.core.utils as utils
 import weakref
 import numpy as np
+import pinenut.core.cuda as cuda
 
 '''
     Define a tensor class, which is a wrapper of numpy array.
@@ -34,7 +35,8 @@ class Tensor:
         if self.creator is None:
             return
         if self.grad is None:
-            self.grad = as_tensor(np.ones_like(self.data))
+            xp = cuda.Cuda.get_array_module(self.data)
+            self.grad = as_tensor(xp.ones_like(self.data))
         self._backward_engine.run_backward(self, self.grad, retain_grad)
 
     def set_creator(self, creator):
@@ -72,32 +74,37 @@ class Tensor:
         self._name = value
 
     def __eq__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return np.array_equal(self.data, other.data)
-        return np.array_equal(self.data, other)
+            return xp.array_equal(self.data, other.data)
+        return xp.array_equal(self.data, other)
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __le__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return np.less_equal(self.data, other.data)
-        return np.less_equal(self.data, other)
+            return xp.less_equal(self.data, other.data)
+        return xp.less_equal(self.data, other)
 
     def __lt__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return np.less(self.data, other.data)
-        return np.less(self.data, other)
+            return xp.less(self.data, other.data)
+        return xp.less(self.data, other)
 
     def __ge__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return np.greater_equal(self.data, other.data)
-        return np.greater_equal(self.data, other)
+            return xp.greater_equal(self.data, other.data)
+        return xp.greater_equal(self.data, other)
 
     def __gt__(self, other):
+        xp = cuda.Cuda.get_array_module(self.data)
         if isinstance(other, Tensor):
-            return np.greater(self.data, other.data)
-        return np.greater(self.data, other)
+            return xp.greater(self.data, other.data)
+        return xp.greater(self.data, other)
 
     def clear_grad(self):
         self.grad = None
@@ -145,6 +152,14 @@ class Tensor:
     def T(self):
         return transpose(self)
 
+    def to_cpu(self):
+        if self.data is not None:
+            self.data = cuda.Cuda.as_numpy(self.data)
+
+    def to_gpu(self):
+        if self.data is not None:
+            self.data = cuda.Cuda.as_cupy(self.data)
+
 
 class Parameter(Tensor):
     pass
@@ -159,10 +174,11 @@ def as_tensor(data, name=None):
 
 def as_array(data, dtype=None):
     if np.isscalar(data) or isinstance(data, (list, tuple)):
+        xp = cuda.Cuda.get_array_module(data)
         if dtype is None:
-            return np.array(data)
+            return xp.array(data)
         else:
-            return np.array(data, dtype=dtype)
+            return xp.array(data, dtype=dtype)
     else:
         if dtype is None:
             return data
@@ -425,7 +441,8 @@ class Exp(Operator):
 
     def forward(self, x):
         try:
-            y = np.exp(x)
+            xp = cuda.Cuda.get_array_module(x)
+            y = xp.exp(x)
         except:
             print(x)
             raise
@@ -450,7 +467,8 @@ class Abs(Operator):
         return '|_|'
 
     def forward(self, x):
-        y = np.abs(x)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.abs(x)
         return y
 
     def backward(self, grad_output):
@@ -527,7 +545,7 @@ class Transpose(Operator):
         inv_axes = self.axes
         if inv_axes:
             axes_len = len(inv_axes)
-            inv_axes = tuple(np.argsort([ax % axes_len for ax in inv_axes]))
+            inv_axes = tuple(cuda.Cuda.xp().argsort([ax % axes_len for ax in inv_axes]))
             return transpose(grad_output, inv_axes)
         else:
             return transpose(grad_output)
@@ -587,7 +605,8 @@ class ExpandDims(Operator):
         return '__expand_dims__'
 
     def forward(self, x):
-        y = np.expand_dims(x, self.axis)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.expand_dims(x, self.axis)
         return y
 
     def backward(self, grad_output):
@@ -722,7 +741,8 @@ class BroadcastTo(Operator):
 
     def forward(self, x):
         self.x_shape = x.shape
-        y = np.broadcast_to(x, self.shape)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.broadcast_to(x, self.shape)
         return y
 
     def backward(self, grad_output):
@@ -787,8 +807,9 @@ class IndexGrad(Operator):
         return '__index_grad__'
 
     def forward(self, grad_output):
-        grad_x = np.zeros(self.x_shape, dtype=grad_output.dtype)
-        np.add.at(grad_x, self.slices, grad_output)
+        xp = cuda.Cuda.xp()
+        grad_x = xp.zeros(self.x_shape, dtype=grad_output.dtype)
+        xp.add.at(grad_x, self.slices, grad_output)
         return grad_x
 
     def backward(self, grad_of_grad_output):
@@ -804,7 +825,8 @@ class Log(Operator):
         return '__log__'
 
     def forward(self, x):
-        y = np.log(x)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.log(x)
         return y
 
     def backward(self, grad_output):
@@ -827,7 +849,8 @@ class Clip(Operator):
         self.a_max = a_max
 
     def forward(self, x):
-        y = np.clip(x, self.a_min, self.a_max)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.clip(x, self.a_min, self.a_max)
         return y
 
     def backward(self, grad_output):
@@ -858,7 +881,8 @@ class Concat(Operator):
         return '__concat__'
 
     def forward(self, *xs):
-        y = np.concatenate(xs, axis=self.axis)
+        xp = cuda.Cuda.get_array_module(xs[0])
+        y = xp.concatenate(xs, axis=self.axis)
         return y
 
     def backward(self, grad_output):
@@ -868,7 +892,7 @@ class Concat(Operator):
         for (i, size) in enumerate(split_sizes):
             if i > 0:
                 split_sizes[i] += split_sizes[i - 1]
-        grads = np.split(grad_output.data, split_sizes, axis=axis)
+        grads = cuda.Cuda.xp().split(grad_output.data, split_sizes, axis=axis)
         ret_grads = []
         for i in range(len(xs)):
             ret_grads.append(grads[i])

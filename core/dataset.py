@@ -1,4 +1,5 @@
 import numpy as np
+import pinenut.core.cuda as cuda
 
 
 class Dataset:
@@ -38,12 +39,13 @@ class Dataset:
 
 
 class DataLoader:
-    def __init__(self, dataset, batch_size=1, shuffle=False):
+    def __init__(self, dataset, batch_size=1, shuffle=False, enable_cuda=False):
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.indexes = np.arange(len(dataset))
         self.iter_count = None
+        self.enable_cuda = enable_cuda
         self.reset()
 
     def __iter__(self):
@@ -57,9 +59,9 @@ class DataLoader:
         i = self.iter_count * self.batch_size
         i_end = min(i + self.batch_size, len(self.dataset))
         batch = [self.dataset[j] for j in self.indexes[i:i_end]]
-
-        data = np.array([example[0] for example in batch])
-        label = np.array([example[1] for example in batch])
+        xp = cuda.Cuda.xp()
+        data = xp.array([example[0] for example in batch])
+        label = xp.array([example[1] for example in batch])
 
         self.iter_count += 1
         return data, label
@@ -71,3 +73,9 @@ class DataLoader:
         self.iter_count = 0
         if self.shuffle:
             np.random.shuffle(self.indexes)
+
+    def enable_cuda(self):
+        self.enable_cuda = True
+
+    def disable_cuda(self):
+        self.enable_cuda = False

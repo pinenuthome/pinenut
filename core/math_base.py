@@ -1,6 +1,4 @@
 from pinenut.core import Operator
-import numpy as np
-
 
 class Sin(Operator):
     """
@@ -11,7 +9,8 @@ class Sin(Operator):
         return '__sin__'
 
     def forward(self, x):
-        y = np.sin(x)
+        xp = Cuda.get_array_module(x)
+        y = xp.sin(x)
         return y
 
     def backward(self, grad_output):
@@ -33,7 +32,8 @@ class Cos(Operator):
         return '__cos__'
 
     def forward(self, x):
-        y = np.cos(x)
+        xp = Cuda.get_array_module(x)
+        y = xp.cos(x)
         return y
 
     def backward(self, grad_output):
@@ -55,7 +55,8 @@ class Tanh(Operator):
         return '__tanh__'
 
     def forward(self, x):
-        y = np.tanh(x)
+        xp = Cuda.get_array_module(x)
+        y = xp.tanh(x)
         return y
 
     def backward(self, grad_output):

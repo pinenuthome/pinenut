@@ -46,6 +46,18 @@ class LayerBase:
         for name in self._children:  # recursively clear the grad of children
             self.__dict__[name].clear_all_grad()
 
+    def to_cpu(self):
+        for param in self.params:
+            param.to_cpu()
+        for name in self._children:
+            self.__dict__[name].to_cpu()
+
+    def to_gpu(self):
+        for param in self.params:
+            param.to_gpu()
+        for name in self._children:
+            self.__dict__[name].to_gpu()
+
     def unwrap_tensor(self, obj):
         if isinstance(obj, Tensor):
             return obj.data
@@ -187,8 +199,11 @@ class MLP(LayerBase):
         print('Total layers: %d' % len(self.layers))
         print('---------------------------------------------------------------')
 
-    def train(self, train_dataset, epochs, batch_size, optimizer, test_dataset=None):
+    def train(self, train_dataset, epochs, batch_size, optimizer, test_dataset=None, enable_cuda=False):
         train_loader = ds.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        if enable_cuda:
+            self.to_gpu()
+            train_loader.enable_cuda()
         for epoch in range(epochs):
             sum_loss = 0.0
             sum_acc = 0.0
