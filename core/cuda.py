@@ -62,7 +62,7 @@ class Cuda:
 
     @staticmethod
     def as_cupy(x):
-        if isinstance(x, C.Tensor):
+        if isinstance(x, pn.Tensor):
             x = x.data
 
         if _cuda_available:
