@@ -31,13 +31,19 @@ class Tensor:
         self.grad = None
         self.rank = 0
 
-    def backward(self, retain_grad=False):
+    def backward(self, retain_grad=False, enable_buildgraph=True):
         if self.creator is None:
             return
         if self.grad is None:
             xp = cuda.Cuda.get_array_module(self.data)
             self.grad = as_tensor(xp.ones_like(self.data))
-        self._backward_engine.run_backward(self, self.grad, retain_grad)
+        if not enable_buildgraph:
+            # do not build computational graph duration backward()
+            # for example, for calculating second derivative
+            with no_grad():
+                self._backward_engine.run_backward(self, self.grad, retain_grad)
+        else:
+            self._backward_engine.run_backward(self, self.grad, retain_grad)
 
     def set_creator(self, creator):
         self.creator = creator
@@ -127,6 +133,9 @@ class Tensor:
                         x.unchain()
                 op.inputs = []
                 op.outputs = []
+                if isinstance(op, Pow):
+                    op.n = None
+                op = None
 
     @property
     def shape(self):
@@ -784,7 +793,6 @@ class Index(Operator):
         return '__index__'
 
     def forward(self, x):
-        self.x = x
         self.x_shape = x.shape
         # print('type of x:', x)
         # print('type of slices', self.slices)
@@ -793,7 +801,8 @@ class Index(Operator):
         return y
 
     def backward(self, grad_output):
-        ig = IndexGrad(self.slices, self.x_shape, self.x)
+        xp = cuda.Cuda.get_array_module(self.inputs[0])
+        ig = IndexGrad(self.slices, self.x_shape, xp)
         return ig(grad_output)
 
 
@@ -806,20 +815,19 @@ class IndexGrad(Operator):
     This class is used to compute the gradient of index operator.
     """
 
-    def __init__(self, slices, x_shape, x):
+    def __init__(self, slices, x_shape, xp):
         super().__init__()
         self.slices = slices
         self.x_shape = x_shape
-        self.x = x
+        self.xp = xp
 
     @property
     def label(self):
         return '__index_grad__'
 
     def forward(self, grad_output):
-        xp = cuda.Cuda.get_array_module(self.x) 
-        grad_x = xp.zeros(self.x_shape, dtype=grad_output.dtype)
-        if xp is np:
+        grad_x = self.xp.zeros(self.x_shape, dtype=grad_output.dtype)
+        if self.xp is np:
             np.add.at(grad_x, self.slices, grad_output)
         else:
             cpx = cuda.Cuda.cupyx()
