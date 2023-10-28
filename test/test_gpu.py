@@ -18,8 +18,13 @@ class TestCuda(unittest.TestCase):
         print(type(z.data))
 
         z.backward()
-        assert (x.grad.data == [4, 5, 6]).all()
-        assert (y.grad.data == [1, 2, 3]).all()
+
+        xp = Cuda.get_array_module(x.data)
+        assert xp.array_equal(x.grad.data, xp.array([4, 5, 6]))
+        assert xp.array_equal(y.grad.data.squeeze(), xp.array([1, 2, 3]))
+
+        # assert (x.grad.data == [4, 5, 6]).all()
+        # assert (y.grad.data == [1, 2, 3]).all()
 
 
 if __name__ == '__main__':

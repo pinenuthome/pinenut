@@ -22,6 +22,7 @@ class BackwardEngine:
     def run_backward(self, tensor, grad, retain_grad=False):
         '''
         This function is used to run backward propagation.
+        retain_grad: if retain_grad is True, the gradient of each tensor will be retained.
         '''
         self.add_op(tensor.creator)
 

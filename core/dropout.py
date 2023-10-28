@@ -2,6 +2,7 @@ import numpy as np
 
 from pinenut.core import Operator
 import pinenut.core.utils as U
+import pinenut.core.cuda as cuda
 
 
 class Dropout(Operator):
@@ -16,7 +17,9 @@ class Dropout(Operator):
 
     def forward(self, x):
         if U.Config.train:
-            self.mask = np.random.binomial(1, (1 - self.p), size=x.shape)
+            xp = cuda.Cuda.get_array_module(x)
+            self.mask = xp.random.binomial(1, (1 - self.p), size=x.shape)
+
             y = x * self.mask
         else:
             y = x

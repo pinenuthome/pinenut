@@ -73,3 +73,9 @@ model.save_weights('mnist_weights.npz')
 - [3] Automatic gradient calculation
 - [4] Support for various activation, loss and optimizer functions
 - [5] Pure Python implementation
+
+## Requirements
+- Python 3.6 or later
+- NumPy
+- CUDA (optional), CuPy (optional)
+- Matplotlib (optional)

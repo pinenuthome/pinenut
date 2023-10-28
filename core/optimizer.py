@@ -1,5 +1,5 @@
 import collections
-import numpy as np
+import pinenut.core.cuda as cuda
 
 
 class Optimizer:
@@ -53,12 +53,13 @@ class AdaGrad(Optimizer):
 
     def update_one(self, p):
         m_key = id(p)
+        xp = cuda.Cuda.get_array_module(p.data)
 
         if m_key not in self.ms:
-            self.ms[m_key] = np.zeros_like(p.data)
+            self.ms[m_key] = xp.zeros_like(p.data)
 
         self.ms[m_key] += p.grad.data ** 2
-        p.data -= self.lr * p.grad.data / (np.sqrt(self.ms[m_key]) + self.eps)
+        p.data -= self.lr * p.grad.data / (xp.sqrt(self.ms[m_key]) + self.eps)
 
 
 class Adam(Optimizer):
@@ -75,10 +76,11 @@ class Adam(Optimizer):
     def update_one(self, p):
         self.t += 1
         m_key = id(p)
+        xp = cuda.Cuda.get_array_module(p.data)
 
         if m_key not in self.ms:
-            self.ms[m_key] = np.zeros_like(p.data)
-            self.vs[m_key] = np.zeros_like(p.data)
+            self.ms[m_key] = xp.zeros_like(p.data)
+            self.vs[m_key] = xp.zeros_like(p.data)
 
         self.ms[m_key] = self.beta1 * self.ms[m_key] + (1 - self.beta1) * p.grad.data
         self.vs[m_key] = self.beta2 * self.vs[m_key] + (1 - self.beta2) * p.grad.data ** 2
@@ -86,7 +88,7 @@ class Adam(Optimizer):
         m_hat = self.ms[m_key] / (1 - self.beta1 ** self.t)
         v_hat = self.vs[m_key] / (1 - self.beta2 ** self.t)
 
-        p.data -= self.alpha * m_hat / (np.sqrt(v_hat) + self.eps)
+        p.data -= self.alpha * m_hat / (xp.sqrt(v_hat) + self.eps)
 
 
 class Momentum(Optimizer):
@@ -98,8 +100,9 @@ class Momentum(Optimizer):
 
     def update_one(self, p):
         v_key = id(p)
+        xp = cuda.Cuda.get_array_module(p.data)
         if v_key not in self.vs:
-            self.vs[v_key] = np.zeros_like(p.data)
+            self.vs[v_key] = xp.zeros_like(p.data)
 
         self.vs[v_key] = self.momentum * self.vs[v_key] - self.lr * p.grad.data
         p.data += self.vs[v_key]

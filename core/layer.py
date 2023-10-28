@@ -218,9 +218,10 @@ class MLP(LayerBase):
                 y_pred = self(x)
                 loss = softmax_cross_entropy(y_pred, y)
 
-                loss.backward()
+                loss.backward(enable_buildgraph=False)
                 optimizer.update()
                 self.clear_all_grad()
+                loss.unchain_backward()  # release memory
 
                 acc = accuracy(y_pred, y)
                 sum_loss += float(loss.data) * len(y)
