@@ -59,11 +59,39 @@ class DataLoader:
         i = self.iter_count * self.batch_size
         i_end = min(i + self.batch_size, len(self.dataset))
         batch = [self.dataset[j] for j in self.indexes[i:i_end]]
-        
-        xp = cuda.Cuda.xp() if self.enable_cuda else np
-        
-        data = xp.array([example[0] for example in batch])
-        label = xp.array([example[1] for example in batch])
+
+        # do not use gpu
+        if not self.enable_cuda:
+            data = np.array([example[0] for example in batch])
+            label = np.array([example[1] for example in batch])
+            self.iter_count += 1
+            return data, label
+
+        # try to use gpu
+        gpu_count = 1
+        if self.device_list is not None:
+            gpu_count = len(self.device_list)
+
+        if gpu_count <= 1:
+            xp = cuda.Cuda.xp() if self.enable_cuda else np
+            data = xp.array([example[0] for example in batch])
+            label = xp.array([example[1] for example in batch])
+        else:
+            # if count of gpu more then 1, should divide data into count in order to process  parallel by multi threads
+            m = self.batch_size // gpu_count  # notice: batch_size should be divisible by gpu_count
+            assert m * gpu_count == self.batch_size
+            cp = cuda.Cuda.cupy()
+
+            data = []
+            label = []
+            for i in range(gpu_count):
+                gpu_id = self.device_list[i]
+                with cp.cuda.Device(gpu_id):
+                    mini_batch = batch[i * m: (i + 1) * m]
+                    mini_data = cp.array([example[0] for example in mini_batch])
+                    mini_label = cp.array([example[1] for example in mini_batch])
+                    data.append(mini_data)
+                    label.append(mini_label)
 
         self.iter_count += 1
         return data, label
@@ -76,8 +104,9 @@ class DataLoader:
         if self.shuffle:
             np.random.shuffle(self.indexes)
 
-    def to_gpu(self):
+    def to_gpu(self, device_list=None):
         self.enable_cuda = True
+        self.device_list = device_list
 
     def to_cpu(self):
         self.enable_cuda = False

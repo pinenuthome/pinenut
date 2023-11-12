@@ -1,5 +1,5 @@
 from pinenut.core import Operator
-import numpy as np
+import pinenut.core.cuda as cuda
 
 
 class Sigmoid(Operator):
@@ -8,7 +8,8 @@ class Sigmoid(Operator):
     """
 
     def forward(self, x):
-        y = 1 / (1 + np.exp(-x))
+        xp = cuda.Cuda.get_array_module(x)
+        y = 1 / (1 + xp.exp(-x))
         return y
 
     def backward(self, grad_output):
@@ -27,7 +28,8 @@ class ReLu(Operator):
     """
 
     def forward(self, x):
-        y = np.maximum(0, x)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.maximum(0, x)
         return y
 
     def backward(self, grad_output):
@@ -50,7 +52,8 @@ class LeakyRelu(Operator):
         self.alpha = alpha
 
     def forward(self, x):
-        y = np.maximum(self.alpha * x, x)
+        xp = cuda.Cuda.get_array_module(x)
+        y = xp.maximum(self.alpha * x, x)
         return y
 
     def backward(self, grad_output):

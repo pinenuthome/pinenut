@@ -1,4 +1,3 @@
-import numpy as np
 import pinenut.core as C
 import pinenut.core.cuda as cuda
 

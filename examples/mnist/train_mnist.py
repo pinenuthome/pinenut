@@ -20,6 +20,7 @@ lr = 0.1 # learning rate
 
 model = MLP([784, 100, 10], hidden_activation=relu, output_activation=softmax)
 optimizer = SGD(model, lr)
+#cuda_is_available = False
 cuda_is_available = Cuda.available()
 start = time.time()
 model.train(train, epochs, batch_size, optimizer, test, enable_cuda=cuda_is_available)

@@ -10,5 +10,6 @@ from pinenut.core.gradient_check import numerical_gradient
 from pinenut.core.dataset import Dataset, DataLoader
 from pinenut.core.datasets import SpiralDataset
 from pinenut.core.cuda import Cuda
+from pinenut.core.multigpu import ParallelModel
 
 init_tensor()

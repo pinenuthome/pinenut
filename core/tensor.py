@@ -32,6 +32,11 @@ class Tensor:
         self.rank = 0
 
     def backward(self, retain_grad=False, enable_buildgraph=True):
+        '''
+        This function is used to compute the gradient of a tensor.
+        :param retain_grad: whether to retain the gradient of the input tensors after backward propagation
+        :param enable_buildgraph: whether to build the computational graph during backward
+        '''
         if self.creator is None:
             return
         if self.grad is None:
@@ -186,7 +191,7 @@ def as_tensor(data, name=None):
 
 
 def as_array(data, dtype=None, xp=np):
-    if np.isscalar(data) or isinstance(data, (list, tuple)):
+    if xp.isscalar(data) or isinstance(data, (list, tuple)):
         if dtype is None:
             return xp.array(data)
         else:
