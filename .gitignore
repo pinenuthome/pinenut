@@ -1,0 +1,12 @@
+.DS_Store
+.venv/
+__pycache__
+build/
+dist/
+demo_outputs/
+*.egg-info/
+*.npz
+*.dot
+*.png
+*.gif
+.ipynb_checkpoints
